@@ -60,6 +60,30 @@ def principal(observada, mascara):
             b = np.where(Mk, R - a[:, None], 0.0).sum(0) / cont_c
         return mu + a[:, None] + b[None, :]
 
+    # coordenadas de cada célula normalizadas para [-1, 1]
+    if m > 1:
+        cx = 2.0 * np.arange(m) / (m - 1) - 1.0
+    else:
+        cx = np.zeros(1)
+    if n > 1:
+        cy = 2.0 * np.arange(n) / (n - 1) - 1.0
+    else:
+        cy = np.zeros(1)
+    X_coord = np.repeat(cx[:, None], n, axis=1)
+    Y_coord = np.repeat(cy[None, :], m, axis=0)
+
+    def polinomio(Mk, grau):
+        """x_ij ~ polinômio de grau `grau` nas coordenadas (linha, coluna),
+        com todos os termos x^a y^b, a + b <= grau, ajustado por mínimos
+        quadrados (equações normais com uma regularização mínima).
+        Captura matrizes "suaves" na posição, como a tabuada (x_ij = i*j)."""
+        termos = [(a, grau_y) for a in range(grau + 1) for grau_y in range(grau + 1 - a)]
+        F = np.stack([X_coord ** t[0] * Y_coord ** t[1] for t in termos], axis=-1)
+        A = F[Mk]
+        G = A.T @ A + 1e-7 * np.eye(len(termos))
+        coef = np.linalg.solve(G, A.T @ Oz[Mk])
+        return F @ coef
+
     # ------------------------------------------------------------------
     # Fatoração de posto k por mínimos quadrados alternados (ALS)
     # ------------------------------------------------------------------
@@ -143,7 +167,7 @@ def principal(observada, mascara):
             grupos.append((te, Mk))
 
         if len(grupos) == 0:  # matriz pequena demais para validar
-            return efeitos(M)
+            return efeitos(M), 'efeitos'
 
         def erro(X, te):
             d = X[te[:, 0], te[:, 1]] - O[te[:, 0], te[:, 1]]
@@ -160,6 +184,17 @@ def principal(observada, mascara):
         erros['media'] = sum(erro(media(Mk), te) for te, Mk in grupos)
         erros['efeitos'] = sum(erro(efeitos(Mk), te) for te, Mk in grupos)
         referencia = min(erros['media'], erros['efeitos'])
+
+        # polinômios na posição, graus 1 a 4 (só se houver dados para os termos)
+        menor_treino = min(int(Mk.sum()) for te, Mk in grupos)
+        # Ele só entra na disputa se ganhar com folga da média e dos efeitos:
+        # em matrizes de puro ruído, algum grau sempre parece um pouco melhor
+        # por acaso (erro ~0,85-0,97 da referência), e escolhê-lo piora o resultado.
+        for grau in range(1, 5):
+            if (grau + 1) * (grau + 2) // 2 < menor_treino:
+                e = sum(erro(polinomio(Mk, grau), te) for te, Mk in grupos)
+                if e < 0.8 * referencia:
+                    erros[('poli', grau)] = e
 
         # --------------------------------------------------------------
         # 1) Escolha do posto k. "Continuação": o ajuste do posto k parte
@@ -208,9 +243,11 @@ def principal(observada, mascara):
         # --------------------------------------------------------------
         escolha = min(erros, key=erros.get)
         if escolha == 'media':
-            return media(M)
+            return media(M), 'media'
         if escolha == 'efeitos':
-            return efeitos(M)
+            return efeitos(M), 'efeitos'
+        if escolha[0] == 'poli':
+            return polinomio(M, escolha[1]), 'poli'
         k_final = escolha[1]
         lam_final = escolha[2]
         # dois pontos de partida (continuação pelos postos e média simples);
@@ -221,13 +258,14 @@ def principal(observada, mascara):
         opcoes = [als(M, k_final, lam_final, P, iters=300),
                   als(M, k_final, lam_final, np.where(M, Oz, mu_total), iters=300)]
         custos = [float(np.sum((L - Oz)[M] ** 2)) for L in opcoes]
-        return opcoes[int(np.argmin(custos))]
+        return opcoes[int(np.argmin(custos))], 'als'
 
     # Rede de segurança: se algo inesperado falhar, cai para modelos simples,
     # porque um erro de execução desclassifica a equipe.
     try:
-        X = estimar()
+        X, modelo = estimar()
     except Exception:
+        modelo = 'efeitos'
         try:
             X = efeitos(M)
         except Exception:
@@ -236,9 +274,10 @@ def principal(observada, mascara):
     # Linha ou coluna sem NENHUMA entrada conhecida: a fatoração não tem como
     # estimá-la (preveria ~0). Ali o melhor palpite é o modelo de efeitos
     # (média + efeito da linha ou da coluna que ainda tem dados).
+    # O polinômio e os modelos simples já preveem essas posições sozinhos.
     vazia_l = M.sum(1) == 0
     vazia_c = M.sum(0) == 0
-    if vazia_l.any() or vazia_c.any():
+    if modelo == 'als' and (vazia_l.any() or vazia_c.any()):
         try:
             X = np.where(vazia_l[:, None] | vazia_c[None, :], efeitos(M), X)
         except Exception:

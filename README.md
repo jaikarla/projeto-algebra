@@ -37,12 +37,12 @@ oficial (`pacote_equipe/`, ver o README de lá): é o resultado dele que vale.
 
 ## Resultado atual (lote público)
 
-NRMSE médio **0,264** (o mesmo que preencher com a média daria ≈ 1,05), com a
+NRMSE médio **0,263** (o mesmo que preencher com a média daria ≈ 1,05), com a
 matriz mais lenta em ~0,2 s (limite: 2 s por matriz e 25 s por lote).
 
 | Caso | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
 |---|---|---|---|---|---|---|---|---|---|---|
-| NRMSE | 1,234 | 0,035 | 0,081 | 0,039 | 0,113 | 0,043 | 0,089 | 1,003 | 0,000 | 0,000 |
+| NRMSE | 1,234 | 0,035 | 0,071 | 0,039 | 0,113 | 0,043 | 0,089 | 1,003 | 0,000 | 0,000 |
 
 Os casos 1 e 8 não têm estrutura aproveitável (ruído em torno de uma
 constante e posto cheio); nenhum método consegue muito melhor que a média ali.

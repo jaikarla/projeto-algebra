@@ -67,11 +67,19 @@ erro nessas entradas. Repetimos com grupos diferentes e somamos os erros.
 - Também competem dois modelos simples: a média global e os efeitos de linha
   e coluna (x_ij ≈ μ + a_i + b_j). Quando a matriz não tem estrutura de posto
   baixo, a validação escolhe um deles.
+- Por último, competem polinômios de grau 1 a 4 nas coordenadas (linha,
+  coluna), com todos os termos xᵃyᵇ (a + b ≤ grau), ajustados por mínimos
+  quadrados. Eles servem para matrizes "suaves" na posição, como a tabuada
+  (x_ij = i·j), e acertam até uma coluna inteira oculta, que a fatoração não
+  consegue prever. Como em matrizes de puro ruído algum grau sempre parece um
+  pouco melhor por acaso, o polinômio só entra na disputa se o seu erro de
+  validação for menor que 80% do erro da média e dos efeitos.
 
 ## 5. Proteções
 
-- Linha ou coluna sem nenhuma entrada conhecida: usamos o modelo de efeitos
-  ali, porque a fatoração não tem informação para ela.
+- Linha ou coluna sem nenhuma entrada conhecida: se o vencedor foi a
+  fatoração, usamos o modelo de efeitos ali, porque a fatoração não tem
+  informação para ela.
 - Qualquer falha inesperada cai para os modelos simples (uma exceção
   desclassificaria a equipe), e a saída nunca tem NaN nem infinito.
 - O código é rápido por construção: no máximo ~0,4 s por matriz nos nossos
@@ -83,7 +91,7 @@ erro nessas entradas. Repetimos com grupos diferentes e somamos os erros.
 |---|---|---|---|
 | 1 | 8 × 8 | 1,234 | 1,234 |
 | 2 | 9 × 6 | 1,051 | 0,035 |
-| 3 | 6 × 9 | 1,099 | 0,081 |
+| 3 | 6 × 9 | 1,099 | 0,071 |
 | 4 | 14 × 5 | 1,039 | 0,039 |
 | 5 | 14 × 7 | 1,001 | 0,113 |
 | 6 | 16 × 16 | 1,031 | 0,043 |
@@ -91,7 +99,7 @@ erro nessas entradas. Repetimos com grupos diferentes e somamos os erros.
 | 8 | 17 × 17 | 1,003 | 1,003 |
 | 9 | 24 × 19 | 1,011 | 0,000 |
 | 10 | 28 × 31 | 1,001 | 0,000 |
-| **Média** | | **≈ 1,05** | **0,264** |
+| **Média** | | **≈ 1,05** | **0,263** |
 
 **Interpretação:**
 - Os casos 9 e 10 têm posto exato (4 e 6) e são recuperados praticamente sem
