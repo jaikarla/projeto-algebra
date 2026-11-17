@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# gerado pelo avaliador oficial (Docker)
+pacote_equipe/historico_local_tentativas/
+
+# zip de entrega
+Grupo*.zip
