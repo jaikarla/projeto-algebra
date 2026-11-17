@@ -74,8 +74,11 @@ def carregar_restrito(codigo, caminho):
 
     embutidos = dict(safe_builtins)
     embutidos['__import__'] = importar
-    for nome in ('enumerate', 'map', 'filter', 'min', 'max', 'sum', 'any', 'all',
-                 'list', 'dict', 'set', 'frozenset', 'reversed', 'iter', 'next'):
+    # funções que o guia oficial lista como permitidas (e algumas afins) que
+    # não vêm em safe_builtins do RestrictedPython
+    for nome in ('enumerate', 'zip', 'map', 'filter', 'min', 'max', 'sum', 'sorted',
+                 'any', 'all', 'list', 'tuple', 'dict', 'set', 'frozenset', 'reversed',
+                 'iter', 'next'):
         embutidos[nome] = __builtins__[nome] if isinstance(__builtins__, dict) else getattr(__builtins__, nome)
     globais = {
         '__builtins__': embutidos,
