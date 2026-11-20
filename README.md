@@ -37,8 +37,9 @@ proibidos pelo guia, valida a saída (dimensões, NaN, infinito), mede o tempo
 de cada matriz e compara o NRMSE com dois modelos simples (média global e
 efeitos de linha e coluna), avisando quando a solução fica pior que eles.
 
-Com `--depurar`, as "redes de segurança" da solução (os `except` que recuam
-para um modelo simples) são desligadas, e qualquer falha interna aparece:
+Com `--depurar`, os `except Exception:` do arquivo da solução são trocados por
+`except ():`. Assim, exceções internas deixam de ser capturadas pelos fallbacks
+e aparecem como falhas no avaliador:
 
 ```bash
 python ferramentas/avaliar_local.py --depurar --bancos publico,remascarado,sintetico,laboratorio,extremos
@@ -50,13 +51,13 @@ ver o README de lá): é o resultado dele que vale.
 ## Resultado atual (lote público)
 
 **Avaliador oficial (Docker da monitoria):** sucesso em todas as matrizes,
-NRMSE médio agregado **0,262521**, tempo total ≈ 1,1 s (limite: 2 s por matriz
+NRMSE médio agregado **0,262521**, tempo total **1,4853 s** (limite: 2 s por matriz
 e 25 s por lote). O avaliador local dá os mesmos valores por matriz. Para
 comparar: preencher com a média global daria ≈ 1,05.
 
 | Caso | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
 |---|---|---|---|---|---|---|---|---|---|---|
-| NRMSE | 1,234 | 0,035 | 0,071 | 0,039 | 0,113 | 0,043 | 0,089 | 1,003 | 0,000 | 0,000 |
+| NRMSE | 1,2342 | 0,0349 | 0,0706 | 0,0385 | 0,1127 | 0,0425 | 0,0887 | 1,0026 | 0,0002 | 0,0003 |
 
 Os casos 1 e 8 não têm estrutura aproveitável (ruído em torno de uma
 constante e posto cheio); nenhum método consegue muito melhor que a média ali.
@@ -77,10 +78,3 @@ Do guia oficial e de testes com o RestrictedPython:
 - A `mascara` do lote público vem como **inteiro 0/1** (não booleana) e as
   ocultas vêm como **NaN** em `observada`: converta com `.astype(bool)`
   antes de usar `~mascara`.
-
-## Entrega (Etapa 1) — até 20/11, 23:59, pelo Classroom
-
-- [ ] `GrupoN.zip` (N = número da equipe na planilha) com `solucao.py` e o relatório
-- [ ] uma só pessoa entrega e escreve os nomes da equipe num comentário particular
-- [ ] código final testado no avaliador oficial (Docker) sem falhas
-- [ ] todos os integrantes conseguem explicar o algoritmo (Etapa 2, em 03/12)

@@ -1,7 +1,7 @@
 # Relatório — Reconstrução de matrizes com entradas ocultas
 
 **Disciplina:** CIN0138 — Álgebra Vetorial e Linear para Computação
-**Equipe:** Grupo N — (nomes dos integrantes)
+**Equipe:** Byanca Hayally Candido de Souza, Jaianny Karla de Oliveira Souza e Layse Maryane Feitoza Gomes
 
 ## 1. O problema
 
@@ -21,8 +21,9 @@ ela se fatora como
   X = U Vᵀ,  com U (m × k) e V (n × k),
 
 isto é, cada linha de X é uma combinação linear das k linhas de Vᵀ. São só
-k(m + n) incógnitas, bem menos que as m·n entradas, e por isso as entradas
-conhecidas bastam para determinar U e V. O produto U Vᵀ preenche as ocultas.
+k(m + n) parâmetros, bem menos que as m·n entradas. Com cobertura suficiente
+das linhas e colunas, as entradas conhecidas podem permitir estimar U e V. O
+produto U Vᵀ fornece as estimativas para as posições ocultas.
 
 ## 3. Como estimamos U e V: mínimos quadrados alternados (ALS)
 
@@ -37,9 +38,10 @@ pequeno, dado pelas equações normais:
   (V_iᵀ V_i + λ I) u_i = V_iᵀ x_i,
 
 em que V_i contém só as linhas de V das colunas conhecidas na linha i. Depois
-fixamos U e resolvemos cada v_j do mesmo jeito, e repetimos. A cada passo o
-erro não aumenta. É a mesma ideia de "rodadas" da estratégia de efeitos de
-linha e coluna do laboratório, generalizada para k dimensões.
+fixamos U e resolvemos cada v_j do mesmo jeito, e repetimos. A cada passo, o
+objetivo regularizado que estamos minimizando não aumenta. É a mesma ideia de
+"rodadas" da estratégia de efeitos de linha e coluna do laboratório,
+generalizada para k dimensões.
 
 Detalhes que se mostraram importantes nos testes:
 
@@ -52,8 +54,7 @@ Detalhes que se mostraram importantes nos testes:
 
 ## 4. Escolha do posto k e de λ: validação cruzada
 
-O posto certo é decisivo: errar k por 1 multiplicava o erro por 10 em alguns
-casos. Para escolher sem conhecer o gabarito, escondemos de propósito cerca de
+O posto certo é decisivo: errar k por 1 multiplicava o erro por 10 em alguns casos. Para escolher sem conhecer o gabarito, escondemos de propósito cerca de
 10% das entradas **conhecidas**, ajustamos o modelo com o resto e medimos o
 erro nessas entradas. Repetimos com grupos diferentes e somamos os erros.
 
@@ -85,13 +86,14 @@ erro nessas entradas. Repetimos com grupos diferentes e somamos os erros.
   informação para ela.
 - Qualquer falha inesperada cai para os modelos simples (uma exceção
   desclassificaria a equipe), e a saída nunca tem NaN nem infinito.
-- O código é rápido por construção: no máximo ~0,4 s por matriz nos nossos
-  testes (o limite é 2 s).
+- Nas execuções locais feitas para esta versão, o maior tempo observado foi
+  cerca de 1,1 s por matriz; os tempos variam conforme o ambiente. O limite
+  oficial é 2 s por matriz.
 
 ## 6. Resultados no lote público
 
 Resultados do avaliador oficial da monitoria (Docker): sucesso em todas as
-matrizes, NRMSE médio agregado 0,262521, tempo total ≈ 1,1 s.
+matrizes, NRMSE médio agregado 0,262521, tempo total 1,4853 s.
 
 | Caso | Tamanho | Média global | Nosso algoritmo |
 |---|---|---|---|
@@ -103,8 +105,8 @@ matrizes, NRMSE médio agregado 0,262521, tempo total ≈ 1,1 s.
 | 6 | 16 × 16 | 1,031 | 0,043 |
 | 7 | 18 × 22 | 1,001 | 0,089 |
 | 8 | 17 × 17 | 1,003 | 1,003 |
-| 9 | 24 × 19 | 1,011 | 0,000 |
-| 10 | 28 × 31 | 1,001 | 0,000 |
+| 9 | 24 × 19 | 1,011 | 0,0002 |
+| 10 | 28 × 31 | 1,001 | 0,0003 |
 | **Média** | | **≈ 1,05** | **0,263** |
 
 **Interpretação:**
@@ -121,15 +123,11 @@ mesmos gabaritos sob máscaras novas, com matrizes sintéticas parecidas (até
 40 × 40), com as 12 matrizes do laboratório da disciplina e com casos extremos
 (valores ocultos fora da faixa observada, deslocamento de 10 000, colunas em
 escalas de 1 a 1000, 70% de entradas ocultas, linhas e colunas inteiras
-ocultas). Em 153 matrizes, a saída foi sempre válida, nenhuma levou mais de
-0,3 s, e a solução só ficou pior que a média ou os efeitos em 4 casos sem
-estrutura aproveitável (ruído puro ou quase nada conhecido).
-
-## 7. O que aprendemos
-
-(escrever com as palavras da equipe: posto, espaço das colunas, mínimos
-quadrados e equações normais, SVD, por que a validação cruzada é necessária,
-o que deu errado no caminho)
+ocultas). Nas 153 matrizes desses bancos, a saída foi válida. Nas execuções
+locais realizadas, o maior tempo observado ficou abaixo de 1,1 s por matriz.
+O avaliador local sinalizou quatro casos em que a solução ficou claramente
+pior que pelo menos uma das referências simples; esses avisos não significam
+falha de formato ou execução.
 
 ## Referências
 
