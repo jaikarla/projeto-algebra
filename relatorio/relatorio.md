@@ -1,6 +1,6 @@
 # Relatório — Reconstrução de matrizes com entradas ocultas
 
-**Disciplina:** CIN0138 — Álgebra Vetorial e Linear para Computação
+**Disciplina:** CIN0138 — Álgebra Vetorial e Linear para Computação<br>
 **Equipe:** Byanca Hayally Candido de Souza, Jaianny Karla de Oliveira Souza e Layse Maryane Feitoza Gomes
 
 ## 1. O problema
@@ -11,7 +11,7 @@ função `principal` devolve a matriz completa. O erro é o NRMSE nas posições
 ocultas: o RMSE dividido pelo desvio-padrão dos valores ocultos verdadeiros.
 Assim, preencher tudo com a média dos ocultos daria NRMSE ≈ 1.
 
-## 2. Ideia central: posto baixo
+## 2. Ideia central: matrizes de posto baixo
 
 Analisando o lote público, vimos que a maioria das matrizes é
 (aproximadamente) de **posto baixo**: poucos valores singulares concentram
