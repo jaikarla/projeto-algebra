@@ -163,10 +163,8 @@ def main():
         print('PROIBIDO PELO GUIA ->', pr)
 
     if args.depurar:
-        marcador = 'except Exception:  # rede de segurança'
-        n_redes = codigo.count(marcador)
+        codigo, n_redes = re.subn(r'except Exception\s*:', 'except ():', codigo)
         # "except ():" não captura nenhuma exceção: o erro original sobe
-        codigo = codigo.replace(marcador, 'except ():  # rede de segurança (desligada)')
         print(f'Modo depuração: {n_redes} "rede(s) de segurança" desligada(s)')
 
     if args.sem_restricted:
