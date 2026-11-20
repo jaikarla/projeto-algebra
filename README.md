@@ -30,15 +30,29 @@ python ferramentas/avaliar_local.py
 python ferramentas/avaliar_local.py --bancos publico,remascarado,sintetico,laboratorio,extremos --detalhes
 ```
 
-Ele executa o código com RestrictedPython na configuração mais estrita,
-procura nomes proibidos pelo guia, valida a saída (dimensões, NaN, infinito) e
-mede o tempo de cada matriz. Antes de entregar, confira também no avaliador
-oficial (`pacote_equipe/`, ver o README de lá): é o resultado dele que vale.
+Ele executa o código com RestrictedPython na configuração mais estrita (e
+para com erro se o RestrictedPython não estiver instalado; `--sem-restricted`
+roda com Python normal, sem testar o ambiente restrito), procura nomes
+proibidos pelo guia, valida a saída (dimensões, NaN, infinito), mede o tempo
+de cada matriz e compara o NRMSE com dois modelos simples (média global e
+efeitos de linha e coluna), avisando quando a solução fica pior que eles.
+
+Com `--depurar`, as "redes de segurança" da solução (os `except` que recuam
+para um modelo simples) são desligadas, e qualquer falha interna aparece:
+
+```bash
+python ferramentas/avaliar_local.py --depurar --bancos publico,remascarado,sintetico,laboratorio,extremos
+```
+
+Antes de entregar, confira também no avaliador oficial (`pacote_equipe/`,
+ver o README de lá): é o resultado dele que vale.
 
 ## Resultado atual (lote público)
 
-NRMSE médio **0,263** (o mesmo que preencher com a média daria ≈ 1,05), com a
-matriz mais lenta em ~0,2 s (limite: 2 s por matriz e 25 s por lote).
+**Avaliador oficial (Docker da monitoria):** sucesso em todas as matrizes,
+NRMSE médio agregado **0,262521**, tempo total ≈ 1,1 s (limite: 2 s por matriz
+e 25 s por lote). O avaliador local dá os mesmos valores por matriz. Para
+comparar: preencher com a média global daria ≈ 1,05.
 
 | Caso | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
 |---|---|---|---|---|---|---|---|---|---|---|

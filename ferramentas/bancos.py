@@ -158,6 +158,41 @@ def extremos(semente=4):
     out.append(('ext_quase_nada_conhecido', g, mascara_aleatoria(rng, 6, 6, 0.9, 0, 0)))
     g = rng.normal(size=(9, 7))
     out.append(('ext_nada_oculto', g, np.ones((9, 7), bool)))
+
+    # --- casos com estrutura, para medir a QUALIDADE (não só a validade) ---
+    # ocultos fora da faixa observada: posto 1 crescente, canto dos maiores oculto
+    g = np.outer(np.arange(1, 13), np.arange(1, 11)) + 0.0
+    M = mascara_aleatoria(rng, 12, 10, 0.15)
+    M[9:, 7:] = False
+    out.append(('ext_fora_da_faixa_posto1', g, M))
+    # tabuada com a última linha e a última coluna inteiras ocultas (extrapolação)
+    I, J = np.mgrid[1:11, 1:11]
+    g = (I * J) + 0.0
+    M = mascara_aleatoria(rng, 10, 10, 0.1)
+    M[9, :] = False
+    M[:, 9] = False
+    out.append(('ext_tabuada_borda_oculta', g, M))
+    # tendência linear suave (x_ij = 2i + 3j + ruído) com o canto oculto
+    g = 2.0 * I + 3.0 * J + 0.1 * rng.normal(size=(10, 10))
+    M = mascara_aleatoria(rng, 10, 10, 0.15)
+    M[7:, 7:] = False
+    out.append(('ext_tendencia_canto_oculto', g, M))
+    # deslocamento enorme em relação à estrutura (10000 + posto 2 de escala 1)
+    g = 1e4 + rng.normal(size=(20, 2)) @ rng.normal(size=(2, 18))
+    out.append(('ext_deslocamento_grande', g, mascara_aleatoria(rng, 20, 18, 0.3)))
+    # colunas em escalas muito diferentes (1, 10, 100, 1000)
+    escalas = np.repeat([1.0, 10.0, 100.0, 1000.0], 4)
+    g = (rng.normal(size=(18, 3)) @ rng.normal(size=(3, 16))) * escalas[None, :]
+    out.append(('ext_escalas_diferentes', g, mascara_aleatoria(rng, 18, 16, 0.3)))
+    # poucas observações: posto 2 com 70% oculto
+    g = rng.normal(size=(30, 2)) @ rng.normal(size=(2, 30))
+    out.append(('ext_poucas_observacoes', g, mascara_aleatoria(rng, 30, 30, 0.7, 2, 2)))
+    # posto 3 com uma linha inteira e uma coluna inteira ocultas
+    g = rng.normal(size=(15, 3)) @ rng.normal(size=(3, 15)) + 5
+    M = mascara_aleatoria(rng, 15, 15, 0.2)
+    M[3, :] = False
+    M[:, 11] = False
+    out.append(('ext_posto3_linha_coluna_ocultas', g, M))
     return out
 
 

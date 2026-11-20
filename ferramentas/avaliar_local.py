@@ -15,6 +15,7 @@ Uso (a partir da raiz do repositório):
     python ferramentas/avaliar_local.py
     python ferramentas/avaliar_local.py --bancos publico,remascarado,sintetico,laboratorio,extremos
     python ferramentas/avaliar_local.py solucao/solucao.py --detalhes
+    python ferramentas/avaliar_local.py --depurar   # mostra falhas escondidas pela rede de segurança
 """
 import argparse
 import operator
@@ -126,11 +127,33 @@ def validar(saida, forma):
     return X, None
 
 
+def referencias(g, m):
+    """NRMSE de dois modelos simples, para comparar com a solução:
+    média global e efeitos de linha e coluna (mu + a_i + b_j, mínimos
+    quadrados em rodadas alternadas)."""
+    Oz = np.where(m, g, 0.0)
+    mu = Oz[m].mean()
+    media = np.full(g.shape, mu)
+    a = np.zeros(g.shape[0])
+    b = np.zeros(g.shape[1])
+    R = np.where(m, Oz - mu, 0.0)
+    cl = np.maximum(m.sum(1), 1)
+    cc = np.maximum(m.sum(0), 1)
+    for _ in range(50):
+        a = np.where(m, R - b[None, :], 0.0).sum(1) / cl
+        b = np.where(m, R - a[:, None], 0.0).sum(0) / cc
+    efeitos = mu + a[:, None] + b[None, :]
+    return nrmse(media, g, m), nrmse(efeitos, g, m)
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument('arquivo', nargs='?', default=os.path.join(RAIZ, 'solucao', 'solucao.py'))
     p.add_argument('--bancos', default='publico', help='lista separada por vírgulas: ' + ','.join(bancos.BANCOS))
-    p.add_argument('--sem-restricted', action='store_true', help='executa com Python normal')
+    p.add_argument('--sem-restricted', action='store_true',
+                   help='executa com Python normal (NÃO garante compatibilidade com o avaliador oficial)')
+    p.add_argument('--depurar', action='store_true',
+                   help='desliga a "rede de segurança" da solução: qualquer falha interna aparece como FALHA')
     p.add_argument('--detalhes', action='store_true', help='mostra cada matriz')
     args = p.parse_args()
 
@@ -139,21 +162,33 @@ def main():
     for pr in problemas:
         print('PROIBIDO PELO GUIA ->', pr)
 
+    if args.depurar:
+        marcador = 'except Exception:  # rede de segurança'
+        n_redes = codigo.count(marcador)
+        # "except ():" não captura nenhuma exceção: o erro original sobe
+        codigo = codigo.replace(marcador, 'except ():  # rede de segurança (desligada)')
+        print(f'Modo depuração: {n_redes} "rede(s) de segurança" desligada(s)')
+
     if args.sem_restricted:
         principal = carregar_normal(codigo, args.arquivo)
-        print('Execução: Python normal (sem RestrictedPython)')
+        print('Execução: Python normal (sem RestrictedPython) -- não garante compatibilidade com o oficial')
     else:
         try:
             principal = carregar_restrito(codigo, args.arquivo)
-            print('Execução: RestrictedPython (configuração estrita)')
         except ImportError:
-            print('AVISO: RestrictedPython não instalado (pip install RestrictedPython); usando Python normal.')
-            principal = carregar_normal(codigo, args.arquivo)
+            print('ERRO: RestrictedPython não está instalado, então não dá para conferir a compatibilidade')
+            print('com o avaliador oficial. Instale com: pip install -r ferramentas/requisitos.txt')
+            print('(ou rode com --sem-restricted, sabendo que isso não testa o ambiente restrito)')
+            return 2
+        print('Execução: RestrictedPython (configuração estrita)')
 
     falhas = len(problemas)
+    atencoes = 0
     for nome_banco in args.bancos.split(','):
         dados = bancos.BANCOS[nome_banco.strip()]()
-        erros, t_lote, t_max, lento = [], 0.0, 0.0, ''
+        erros, ref_media, ref_efeitos = [], [], []
+        t_lote, t_max, lento = 0.0, 0.0, ''
+        piores = []
         for nome, g, m in dados:
             observada = np.where(m, g, np.nan)
             mascara = m.astype(np.int64)  # o lote público vem com máscara 0/1 inteira
@@ -177,19 +212,40 @@ def main():
                 falhas += 1
                 print(f'  FALHA {nome}: {dt:.2f}s (limite {LIMITE_MATRIZ}s por matriz)')
             e = nrmse(X, g, m)
-            if e is not None:
-                erros.append(e)
+            if e is None:
+                if args.detalhes:
+                    print(f'  {nome:28s} {str(g.shape):9s} (sem posições ocultas)  {dt:.2f}s')
+                continue
+            rm, re_ = referencias(g, m)
+            erros.append(e)
+            ref_media.append(rm)
+            ref_efeitos.append(re_)
+            # qualidade: pior que o melhor modelo simples (com margem) merece atenção
+            if e > 1.05 * min(rm, re_) + 0.01:
+                piores.append((nome, e, min(rm, re_)))
             if args.detalhes:
-                print(f'  {nome:28s} {str(g.shape):9s} NRMSE {"-" if e is None else f"{e:.4f}":>7s}  {dt:.2f}s')
+                print(f'  {nome:28s} {str(g.shape):9s} NRMSE {e:7.4f}  '
+                      f'(média {rm:.3f}, efeitos {re_:.3f})  {dt:.2f}s')
         aviso = ''
         if nome_banco.strip() == 'publico' and t_lote > LIMITE_LOTE:
             falhas += 1
             aviso = f'  <- passou do limite de {LIMITE_LOTE}s por lote'
-        media = f'{np.mean(erros):.4f}' if erros else '-'
-        print(f'[{nome_banco}] {len(dados)} matrizes | NRMSE médio {media} | '
-              f'tempo total {t_lote:.2f}s | mais lenta {t_max:.2f}s ({lento}){aviso}')
+        if erros:
+            print(f'[{nome_banco}] {len(dados)} matrizes | NRMSE médio {np.mean(erros):.4f} '
+                  f'(média global {np.mean(ref_media):.4f}, efeitos {np.mean(ref_efeitos):.4f}) | '
+                  f'tempo total {t_lote:.2f}s | mais lenta {t_max:.2f}s ({lento}){aviso}')
+        else:
+            print(f'[{nome_banco}] {len(dados)} matrizes | sem NRMSE calculável | tempo total {t_lote:.2f}s{aviso}')
+        for nome, e, ref in piores:
+            atencoes += 1
+            print(f'  ATENÇÃO {nome}: NRMSE {e:.4f} pior que o melhor modelo simples ({ref:.4f})')
 
-    print('RESULTADO:', 'OK' if falhas == 0 else f'{falhas} problema(s) encontrado(s)')
+    if falhas:
+        print(f'RESULTADO: {falhas} problema(s) encontrado(s)')
+    elif atencoes:
+        print(f'RESULTADO: saída válida em todas, mas {atencoes} matriz(es) pior(es) que um modelo simples')
+    else:
+        print('RESULTADO: OK (saída válida e nunca pior que os modelos simples)')
     return 0 if falhas == 0 else 1
 
 

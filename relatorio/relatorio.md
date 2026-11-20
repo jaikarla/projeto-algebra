@@ -59,6 +59,9 @@ erro nessas entradas. Repetimos com grupos diferentes e somamos os erros.
 
 - Os grupos são formados de modo **determinístico** (o avaliador proíbe fixar
   semente), ordenando as posições pela sequência da razão áurea.
+- Em cada grupo, tudo o que o modelo usa (inclusive a escala da
+  regularização, s_k) é calculado só com as entradas de treino do grupo, para
+  que as entradas retiradas não vazem para o ajuste.
 - Um grupo nunca deixa uma linha ou coluna com menos de 3 conhecidas, para a
   validação se parecer com a situação real.
 - Testamos k = 1, 2, … até o erro parar de cair. Cada k parte da solução do
@@ -87,6 +90,9 @@ erro nessas entradas. Repetimos com grupos diferentes e somamos os erros.
 
 ## 6. Resultados no lote público
 
+Resultados do avaliador oficial da monitoria (Docker): sucesso em todas as
+matrizes, NRMSE médio agregado 0,262521, tempo total ≈ 1,1 s.
+
 | Caso | Tamanho | Média global | Nosso algoritmo |
 |---|---|---|---|
 | 1 | 8 × 8 | 1,234 | 1,234 |
@@ -112,7 +118,12 @@ erro nessas entradas. Repetimos com grupos diferentes e somamos os erros.
 
 Para não ajustar o algoritmo só a esses 10 casos, também o testamos com os
 mesmos gabaritos sob máscaras novas, com matrizes sintéticas parecidas (até
-40 × 40), com as 12 matrizes do laboratório da disciplina e com casos extremos.
+40 × 40), com as 12 matrizes do laboratório da disciplina e com casos extremos
+(valores ocultos fora da faixa observada, deslocamento de 10 000, colunas em
+escalas de 1 a 1000, 70% de entradas ocultas, linhas e colunas inteiras
+ocultas). Em 153 matrizes, a saída foi sempre válida, nenhuma levou mais de
+0,3 s, e a solução só ficou pior que a média ou os efeitos em 4 casos sem
+estrutura aproveitável (ruído puro ou quase nada conhecido).
 
 ## 7. O que aprendemos
 

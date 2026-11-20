@@ -176,9 +176,14 @@ def principal(observada, mascara):
                 return np.inf
             return e
 
-        # valores singulares da matriz preenchida pela média: dão a escala
-        # da regularização (lam = c * s_k, proporcional à k-ésima componente)
+        # Valores singulares da matriz preenchida pela média: dão a escala da
+        # regularização (lam = c * s_k, proporcional à k-ésima componente).
+        # Cada grupo da validação usa os SEUS valores singulares, calculados só
+        # com as entradas de treino do grupo, para que as entradas retiradas
+        # não influenciem o ajuste (sem vazamento de informação).
         sv = np.linalg.svd(np.where(M, Oz, mu_total), compute_uv=False)
+        sv_grupo = [np.linalg.svd(np.where(Mk, Oz, Oz[Mk].mean()), compute_uv=False)
+                    for te, Mk in grupos]
 
         erros = {}
         erros['media'] = sum(erro(media(Mk), te) for te, Mk in grupos)
@@ -207,17 +212,16 @@ def principal(observada, mascara):
         melhor_k = 1
         melhor_e = np.inf
         for k in range(1, kmax + 1):
-            lam = c_posto * sv[k - 1]
             e = 0.0
             novos = []
             for f in range(len(grupos)):
                 te, Mk = grupos[f]
-                L = als(Mk, k, lam, preench[f])
+                L = als(Mk, k, c_posto * sv_grupo[f][k - 1], preench[f])
                 e = e + erro(L, te)
                 novos.append(np.where(Mk, Oz, L))
             partida[k] = preench
             preench = novos
-            erros[('als', k, lam)] = e
+            erros[('als', k, c_posto)] = e
             if e < melhor_e:
                 melhor_e = e
                 melhor_k = k
@@ -231,12 +235,12 @@ def principal(observada, mascara):
         # --------------------------------------------------------------
         if melhor_e <= 1.25 * referencia:
             for c in (1e-4, 3e-3, 1e-2, 3e-2):
-                lam = c * sv[melhor_k - 1]
                 e = 0.0
                 for f in range(len(grupos)):
                     te, Mk = grupos[f]
+                    lam = c * sv_grupo[f][melhor_k - 1]
                     e = e + erro(als(Mk, melhor_k, lam, partida[melhor_k][f]), te)
-                erros[('als', melhor_k, lam)] = e
+                erros[('als', melhor_k, c)] = e
 
         # --------------------------------------------------------------
         # 3) Ajuste final do vencedor com todas as entradas conhecidas
@@ -249,7 +253,7 @@ def principal(observada, mascara):
         if escolha[0] == 'poli':
             return polinomio(M, escolha[1]), 'poli'
         k_final = escolha[1]
-        lam_final = escolha[2]
+        lam_final = escolha[2] * sv[k_final - 1]
         # dois pontos de partida (continuação pelos postos e média simples);
         # fica o que melhor se ajusta às entradas conhecidas
         P = np.where(M, Oz, mu_total)
@@ -261,14 +265,16 @@ def principal(observada, mascara):
         return opcoes[int(np.argmin(custos))], 'als'
 
     # Rede de segurança: se algo inesperado falhar, cai para modelos simples,
-    # porque um erro de execução desclassifica a equipe.
+    # porque um erro de execução desclassifica a equipe. As linhas marcadas
+    # com "rede de segurança" são desligadas pelo avaliador local na opção
+    # --depurar, para mostrar qualquer falha escondida pelo recuo.
     try:
         X, modelo = estimar()
-    except Exception:
+    except Exception:  # rede de segurança
         modelo = 'efeitos'
         try:
             X = efeitos(M)
-        except Exception:
+        except Exception:  # rede de segurança
             X = np.full((m, n), mu_total)
 
     # Linha ou coluna sem NENHUMA entrada conhecida: a fatoração não tem como
@@ -280,7 +286,7 @@ def principal(observada, mascara):
     if modelo == 'als' and (vazia_l.any() or vazia_c.any()):
         try:
             X = np.where(vazia_l[:, None] | vazia_c[None, :], efeitos(M), X)
-        except Exception:
+        except Exception:  # rede de segurança
             X = np.where(vazia_l[:, None] | vazia_c[None, :], mu_total, X)
 
     # só corta valores absurdamente fora da faixa observada
